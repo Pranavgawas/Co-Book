@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "CoBook - Multiplayer Travel",
+  "version": "1.0.0",
+  "description": "Multiplayer travel booking and expense splitting.",
+  "permissions": [
+    "storage", 
+    "activeTab"
+  ],
+  "host_permissions": [
+    "*://*.airbnb.com/*",
+    "*://*.airbnb.co.in/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Open CoBook"
+  },
+  "content_scripts": [
+    {
+      "js": ["src/content.jsx"],
+      "matches": [
+        "*://*.airbnb.com/*",
+        "*://*.airbnb.co.in/*"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  }
+}
