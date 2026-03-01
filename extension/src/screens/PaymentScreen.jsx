@@ -91,14 +91,6 @@ export default function PaymentScreen({ session, members, myUserId, onMarkPaid, 
         <div className="flex flex-col gap-2">
           {host?.profiles?.upi_id ? (
             <>
-              {/* Mobile: UPI deep link */}
-              <a
-                href={generateUpiLink(host.profiles.upi_id, perPerson, host.profiles.name || 'Host')}
-                className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
-                onClick={() => setTimeout(() => onMarkPaid(myUserId), 2000)}
-              >
-                💸 Pay ₹{perPerson.toLocaleString()} via UPI App
-              </a>
               {/* Desktop: show UPI ID + copy */}
               <UpiCopyRow upiId={host.profiles.upi_id} amount={perPerson} onMarkPaid={() => onMarkPaid(myUserId)} />
             </>
