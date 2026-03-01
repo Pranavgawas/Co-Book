@@ -81,7 +81,7 @@ const Popup = () => {
   };
 
   const openAirbnb  = () => chrome.tabs.create({ url: 'https://www.airbnb.co.in' });
-  const openWebsite = () => chrome.tabs.create({ url: '' });
+  const openWebsite = () => chrome.tabs.create({ url: 'https://splitsync-iota.vercel.app/' });
 
   const handleDeleteTrip = async (e, session) => {
     e.stopPropagation();
