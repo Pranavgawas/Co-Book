@@ -33,22 +33,28 @@ export default function Hero() {
   // --- BOOT: Auth + Remote Adapter Fetch ---
   useEffect(() => {
     (async () => {
-      console.log('[SplitSync] ?? Booting...');
+      console.log('[SplitSync] 🚀 Booting...');
+
       
-      // 1. Fetch Remote Scraper Rules
       const currentDomain = getDomainForCurrentPage();
       if (currentDomain) {
-        const { data, error: rErr } = await supabase
-          .from('platform_adapters')
-          .select('selectors')
-          .eq('domain', currentDomain)
-          .maybeSingle();
-        
-        if (data) {
-          setAdapterRules(data.selectors);
-          console.log(`[SplitSync] Loaded remote scraper rules for ${currentDomain}`);
-        } else {
-          console.warn(`[SplitSync] No remote rules found for ${currentDomain}. Check platform_adapters table.`);
+        try {
+          const { data, error: rErr } = await supabase
+            .from('platform_adapters')
+            .select('selectors')
+            .eq('domain', currentDomain)
+            .maybeSingle();
+          
+          if (rErr) console.error('[SplitSync] Supabase error fetching rules:', rErr.message);
+          
+          if (data) {
+            setAdapterRules(data.selectors);
+            console.log(`[SplitSync] Loaded remote scraper rules for ${currentDomain}`);
+          } else {
+            console.warn(`[SplitSync] No remote rules found for ${currentDomain}. Check platform_adapters table.`);
+          }
+        } catch (err) {
+          console.error('[SplitSync] Network error fetching rules:', err);
         }
       }
 
@@ -112,27 +118,40 @@ export default function Hero() {
         setScreen(profile ? 'idle' : 'onboarding');
       }
     };
-    window.addEventListener('cobook-checkout-intercepted', handler);
-    return () => window.removeEventListener('cobook-checkout-intercepted', handler);
+    window.addEventListener('splitsync-checkout-intercepted', handler);
+    return () => window.removeEventListener('splitsync-checkout-intercepted', handler);
   }, [session, profile]);
 
-  useEffect(() => {
-    try {
-      if (session) chrome.storage.local.set({ [STORAGE_KEY]: session });
-      else chrome.storage.local.remove(STORAGE_KEY);
-    } catch (_) {}
-  }, [session]);
+  // Replaced effect that wiped storage. Now explicit.
+
+  const refreshRules = async () => {
+    const currentDomain = getDomainForCurrentPage();
+    if (currentDomain) {
+      const { data } = await supabase.from('platform_adapters').select('selectors').eq('domain', currentDomain).maybeSingle();
+      if (data) {
+        setAdapterRules(data.selectors);
+        console.log(`[SplitSync] Manually refreshed rules for ${currentDomain}`);
+        return data.selectors;
+      }
+    }
+    return null;
+  };
 
   const handleCreateSession = async () => {
     if (!user) return;
     setError('');
     
-    if (!adapterRules) {
-      setError('SplitSync rules for this site are loading or unavailable.');
+    let rules = adapterRules;
+    if (!rules) {
+      rules = await refreshRules();
+    }
+
+    if (!rules) {
+      setError('SplitSync rules for this site are loading or unavailable. Refreshing might help!');
       return;
     }
 
-    const scrapedData = await extractPropertyData(adapterRules);
+    const scrapedData = await extractPropertyData(rules);
     const cost = scrapedData.total_price || 0;
     const currentDomain = getDomainForCurrentPage();
 
@@ -148,6 +167,7 @@ export default function Hero() {
     if (sErr) { setError(`Failed: ${sErr.message}`); return; }
 
     await supabase.from('session_members').insert({ session_id: sessionData.id, user_id: user.id, amount_owed: cost, payment_status: 'paid' });
+    chrome.storage.local.set({ [STORAGE_KEY]: sessionData });
     setSession(sessionData);
     setScreen('lobby');
   };
@@ -158,20 +178,40 @@ export default function Hero() {
     if (sErr || !sessionData) { setError('Session not found.'); return; }
     
     await supabase.from('session_members').upsert({ session_id: sessionId, user_id: user.id, amount_owed: 0, payment_status: 'pending' }, { onConflict: 'session_id,user_id' });
+    chrome.storage.local.set({ [STORAGE_KEY]: sessionData });
     setSession(sessionData);
     setScreen(sessionData.status === 'locked_for_payment' ? 'payment' : 'lobby');
   };
 
   const handleShortlistProperty = async () => {
-    if (!session || !user || !adapterRules) return;
-    const scrapedData = await extractPropertyData(adapterRules);
-    await supabase.from('shortlisted_properties').insert({
-      session_id: session.id,
-      added_by: user.id,
-      property_title: scrapedData.title || 'Travel Property',
-      property_url: window.location.href,
-      price: scrapedData.total_price || 0
-    });
+    if (!session || !user || !adapterRules) {
+      console.warn('[SplitSync] Missing requirements for shortlist:', { session: !!session, user: !!user, rules: !!adapterRules });
+      return;
+    }
+    try {
+      const scrapedData = await extractPropertyData(adapterRules);
+      const isDuplicate = shortlisted.some(p => p.property_title === scrapedData.title);
+      if (isDuplicate) {
+        console.warn('[SplitSync] Property is already on the Voting Board!');
+        return;
+      }
+      
+      const { data, error } = await supabase.from('shortlisted_properties').insert({
+        session_id: session.id,
+        added_by: user.id,
+        property_title: scrapedData.title || 'Travel Property',
+        property_url: window.location.href,
+        price: scrapedData.total_price || 0
+      }).select();
+      
+      if (error) {
+        console.error('[SplitSync] Supabase Insert Error:', error.message);
+      } else {
+        console.log('[SplitSync] Successfully added to shortlist:', data);
+      }
+    } catch (err) {
+      console.error('[SplitSync] Error extracting or inserting property data:', err);
+    }
   };
 
   const handleVote = async (propId, voteType) => {
@@ -191,6 +231,11 @@ export default function Hero() {
     await supabase.from('sessions').update({ property_title: prop.property_title, property_url: prop.property_url, total_cost: prop.price }).eq('id', session.id);
   };
 
+  const handleLockForPayment = async () => {
+    if (session?.host_id !== user?.id) return;
+    await supabase.from('sessions').update({ status: 'locked_for_payment' }).eq('id', session.id);
+  };
+
   const isHost = session?.host_id === user?.id;
   const screenTitle = { loading: 'SplitSync', onboarding: 'Setup', idle: 'SplitSync', lobby: 'Lobby', payment: 'Split', success: 'Done', settings: 'Settings' };
 
@@ -199,11 +244,15 @@ export default function Hero() {
       <div className="bg-neutral-900 border border-neutral-800 rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex justify-between items-center px-4 py-3 border-b border-neutral-800">
           <div className="flex items-center gap-2">
-            <span className="text-sm">??</span>
-            <span className="text-white font-bold text-sm">{screenTitle[screen]}</span>
+            <span className="text-sm">✈️</span>
+            <span className="text-white font-bold text-sm">{screenTitle[screen]}</span><button onClick={refreshRules} className="text-[10px] text-neutral-600 hover:text-emerald-400 ml-1" title="Refresh DB Rules">🔄</button>
           </div>
-          <button onClick={() => setMinimized(m => !m)} className="text-neutral-500 hover:text-white transition-colors">
-            {minimized ? '?' : '?'}
+          <button onClick={() => setMinimized(m => !m)} className="text-neutral-500 hover:text-white transition-colors" title={minimized ? "Maximize" : "Minimize"}>
+            {minimized ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            )}
           </button>
         </div>
 
@@ -215,7 +264,7 @@ export default function Hero() {
             {screen === 'idle' && <IdleScreen profile={profile} onCreateSession={handleCreateSession} onJoinSession={handleJoinSession} />}
             {screen === 'lobby' && (
               <div className="flex flex-col gap-4">
-                <LobbyScreen session={session} members={members} profile={profile} myUserId={user?.id} onLockForPayment={() => setScreen('payment')} onLeave={() => { setSession(null); setScreen('idle'); }} />
+                <LobbyScreen session={session} members={members} profile={profile} myUserId={user?.id} onLockForPayment={handleLockForPayment} onLeave={() => { chrome.storage.local.remove(STORAGE_KEY); setSession(null); setScreen('idle'); }} />
                 <div className="border-t border-neutral-800 pt-4">
                   <div className="flex justify-between items-center mb-2">
                     <p className="text-[10px] text-neutral-500 uppercase font-bold tracking-widest">Voting Board</p>
@@ -226,10 +275,10 @@ export default function Hero() {
                       <div key={prop.id} className="bg-neutral-800/50 border border-neutral-700/50 rounded-lg p-2">
                         <p className="text-xs text-white font-medium truncate mb-1">{prop.property_title}</p>
                         <div className="flex justify-between items-center">
-                          <span className="text-[10px] text-neutral-400">?{Number(prop.price).toLocaleString()}</span>
+                          <span className="text-[10px] text-neutral-400">₹{Number(prop.price).toLocaleString()}</span>
                           <div className="flex items-center gap-2">
-                            <button onClick={() => handleVote(prop.id, 'up')} className={`text-[10px] px-1.5 py-0.5 rounded border ${prop.upvotes?.includes(user?.id) ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'border-neutral-700 text-neutral-500'}`}>?? {prop.upvotes?.length || 0}</button>
-                            <button onClick={() => handleVote(prop.id, 'down')} className={`text-[10px] px-1.5 py-0.5 rounded border ${prop.downvotes?.includes(user?.id) ? 'bg-red-500/20 border-red-500 text-red-400' : 'border-neutral-700 text-neutral-500'}`}>?? {prop.downvotes?.length || 0}</button>
+                            <button onClick={() => handleVote(prop.id, 'up')} className={`text-[10px] px-1.5 py-0.5 rounded border ${prop.upvotes?.includes(user?.id) ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'border-neutral-700 text-neutral-500'}`}>👍 {prop.upvotes?.length || 0}</button>
+                            <button onClick={() => handleVote(prop.id, 'down')} className={`text-[10px] px-1.5 py-0.5 rounded border ${prop.downvotes?.includes(user?.id) ? 'bg-red-500/20 border-red-500 text-red-400' : 'border-neutral-700 text-neutral-500'}`}>👎 {prop.downvotes?.length || 0}</button>
                             {isHost && <button onClick={() => handleSelectFromShortlist(prop)} className="text-[10px] bg-neutral-700 text-white px-2 py-0.5 rounded ml-1">Select</button>}
                           </div>
                         </div>
@@ -240,7 +289,7 @@ export default function Hero() {
               </div>
             )}
             {screen === 'payment' && session && <PaymentScreen session={session} members={members} myUserId={user?.id} onMarkPaid={async (id) => { await supabase.from('session_members').update({ payment_status: 'paid' }).eq('session_id', session.id).eq('user_id', id); }} onUnlockCheckout={async () => { await supabase.from('sessions').update({ status: 'completed' }).eq('id', session.id); setScreen('success'); }} />}
-            {screen === 'success' && session && <SuccessScreen session={session} members={members} onDone={() => { setSession(null); setScreen('idle'); }} />}
+            {screen === 'success' && session && <SuccessScreen session={session} members={members} onDone={() => { chrome.storage.local.remove(STORAGE_KEY); setSession(null); setScreen('idle'); }} />}
             {screen === 'settings' && <SettingsScreen profile={profile} onSave={(data) => { saveProfile(user.id, data); setScreen('idle'); }} onBack={() => setScreen('idle')} />}
           </div>
         )}
@@ -248,3 +297,4 @@ export default function Hero() {
     </div>
   );
 }
+

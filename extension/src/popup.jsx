@@ -170,7 +170,11 @@ const Popup = () => {
             sessionsHistory.map(s => (
               <div 
                 key={s.id} 
-                onClick={() => chrome.tabs.create({ url: s.property_url })}
+                onClick={() => {
+                  chrome.storage.local.set({ cobook_active_session: s }, () => {
+                    chrome.tabs.create({ url: s.property_url });
+                  });
+                }}
                 className="bg-neutral-800/50 hover:bg-neutral-800 border border-neutral-700/50 hover:border-emerald-500/50 rounded-xl p-3 cursor-pointer transition-all flex flex-col gap-1.5"
               >
                 <div className="flex justify-between items-start gap-2">

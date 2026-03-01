@@ -31,7 +31,7 @@ export default function LobbyScreen({ session, members, profile, myUserId, onLoc
   return (
     <div className="flex flex-col gap-3">
       {/* Property Info */}
-      <div className="bg-neutral-800/50 rounded-xl p-3 border border-neutral-700/50">
+      <a href={session.property_url} target="_blank" rel="noopener noreferrer" className="block bg-neutral-800/50 hover:bg-neutral-800/80 rounded-xl p-3 border border-neutral-700/50 transition-colors cursor-pointer">
         <p className="text-[10px] text-neutral-500 uppercase tracking-widest mb-1">Booking</p>
         <p className="text-white font-semibold text-sm truncate">{session.property_title || 'Airbnb Property'}</p>
         <div className="flex justify-between items-center mt-2">
@@ -42,7 +42,7 @@ export default function LobbyScreen({ session, members, profile, myUserId, onLoc
           <span className="text-emerald-400 text-xs">Per Person ({members.length} people)</span>
           <span className="text-emerald-400 font-bold text-sm">₹{perPerson.toLocaleString()}</span>
         </div>
-      </div>
+      </a>
 
       {/* Friends / Members List */}
       <div>
@@ -128,3 +128,4 @@ export default function LobbyScreen({ session, members, profile, myUserId, onLoc
     </div>
   );
 }
+
