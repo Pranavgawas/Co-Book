@@ -44,8 +44,8 @@ export default function PaymentScreen({ session, members, myUserId, onMarkPaid, 
       <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 flex items-center gap-2">
         <span className="text-amber-400 text-base">🔒</span>
         <div>
-          <p className="text-amber-400 font-semibold text-xs">Checkout Locked</p>
-          <p className="text-amber-400/70 text-[10px]">{paidCount}/{members.length} members paid</p>
+          <p className="text-amber-400 font-semibold text-xs">Cost Split Locked</p>
+          <p className="text-amber-400/70 text-[10px]">{paidCount}/{members.length} members paid host</p>
         </div>
         {/* Progress bar */}
         <div className="ml-auto w-16 h-1.5 bg-neutral-700 rounded-full overflow-hidden">
@@ -121,16 +121,17 @@ export default function PaymentScreen({ session, members, myUserId, onMarkPaid, 
 
       {isHost && !allPaid && (
         <div className="bg-neutral-800/50 rounded-xl p-3 text-center">
-          <p className="text-neutral-400 text-xs">Waiting for all members to pay. Checkout will unlock automatically.</p>
+          <p className="text-neutral-400 text-xs">Waiting for all members to send you their share. You can then proceed to book the property.</p>
         </div>
       )}
 
       {allPaid && isHost && (
         <button
           onClick={onUnlockCheckout}
-          className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 rounded-xl text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+          className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 rounded-xl text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)] flex flex-col items-center"
         >
-          🎉 All Paid — Proceed to Checkout
+          <span>🎉 Everyone Paid You</span>
+          <span className="text-[10px] font-medium opacity-80 mt-0.5">Click to reveal booking button</span>
         </button>
       )}
     </div>

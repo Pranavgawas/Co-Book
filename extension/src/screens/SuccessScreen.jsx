@@ -41,9 +41,10 @@ export default function SuccessScreen({ session, members, onDone }) {
 
       <button
         onClick={onDone}
-        className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 rounded-xl text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)]"
+        className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-bold py-3 rounded-xl text-sm transition-all shadow-[0_0_20px_rgba(16,185,129,0.4)] flex flex-col items-center gap-0.5"
       >
-        ✈️ Proceed to Book
+        <span>✈️ Done splitting</span>
+        <span className="text-[10px] font-medium opacity-80">(Go book the property now!)</span>
       </button>
     </div>
   );

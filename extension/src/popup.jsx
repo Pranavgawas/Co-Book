@@ -45,7 +45,7 @@ const Popup = () => {
           const ids = memberRows.map(r => r.session_id);
           const { data: allSessions } = await supabase
             .from('sessions')
-            .select('id, property_title, total_cost, status, property_url, created_at')
+            .select('id, property_title, total_cost, status, property_url, created_at, host_id')
             .in('id', ids)
             .order('created_at', { ascending: false });
 
@@ -81,7 +81,27 @@ const Popup = () => {
   };
 
   const openAirbnb  = () => chrome.tabs.create({ url: 'https://www.airbnb.co.in' });
-  const openWebsite = () => chrome.tabs.create({ url: 'https://splitsync.app' });
+  const openWebsite = () => chrome.tabs.create({ url: '' });
+
+  const handleDeleteTrip = async (e, session) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to remove this trip from your history?')) return;
+    
+    if (session.host_id === user?.id) {
+      await supabase.from('sessions').delete().eq('id', session.id);
+    } else {
+      await supabase.from('session_members').delete().eq('session_id', session.id).eq('user_id', user?.id);
+    }
+    
+    setHistory(prev => prev.filter(s => s.id !== session.id));
+    // If it was the active session, clear it locally
+    chrome.storage.local.get(['cobook_active_session'], (result) => {
+      if (result.cobook_active_session?.id === session.id) {
+        chrome.storage.local.remove('cobook_active_session');
+        setSession(null);
+      }
+    });
+  };
 
   if (view === 'loading') {
     return (
@@ -178,14 +198,23 @@ const Popup = () => {
                 className="bg-neutral-800/50 hover:bg-neutral-800 border border-neutral-700/50 hover:border-emerald-500/50 rounded-xl p-3 cursor-pointer transition-all flex flex-col gap-1.5"
               >
                 <div className="flex justify-between items-start gap-2">
-                  <p className="text-white text-xs font-semibold truncate leading-tight shadow-sm">{s.property_title || 'Airbnb Booking'}</p>
-                  <span className={`shrink-0 text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider font-bold ${
-                    s.status === 'completed' ? 'text-neutral-400 bg-neutral-700/50 border border-neutral-600/30' :
-                    s.status === 'locked_for_payment' ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20' :
-                    'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
-                  }`}>
-                    {s.status === 'locked_for_payment' ? 'Paying' : s.status}
-                  </span>
+                  <p className="text-white text-xs font-semibold truncate leading-tight shadow-sm flex-1">{s.property_title || 'Airbnb Booking'}</p>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider font-bold ${
+                      s.status === 'completed' ? 'text-neutral-400 bg-neutral-700/50 border border-neutral-600/30' :
+                      s.status === 'locked_for_payment' ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20' :
+                      'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
+                    }`}>
+                      {s.status === 'locked_for_payment' ? 'Paying' : s.status}
+                    </span>
+                    <button 
+                      onClick={(e) => handleDeleteTrip(e, s)}
+                      className="text-neutral-500 hover:text-red-400 transition-colors bg-neutral-800 p-1 rounded"
+                      title="Delete Trip"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  </div>
                 </div>
                 <div className="flex justify-between items-center mt-0.5">
                   <p className="text-neutral-400 text-[10px]">
