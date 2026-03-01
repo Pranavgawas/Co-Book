@@ -5,12 +5,13 @@ import { supabase } from './supabaseClient';
 import { ensureAuthenticated, getProfile, saveProfile, persistSessionToStorage } from './utils/auth';
 
 const Popup = () => {
-  const [view, setView]             = useState('loading'); // loading | home | editProfile
-  const [profile, setProfile]       = useState(null);
-  const [activeSession, setSession] = useState(null);
-  const [user, setUser]             = useState(null);
-  const [saving, setSaving]         = useState(false);
-  const [saveMsg, setSaveMsg]       = useState('');
+  const [view, setView]               = useState('loading'); // loading | home | editProfile | myTrips
+  const [profile, setProfile]         = useState(null);
+  const [activeSession, setSession]   = useState(null);
+  const [sessionsHistory, setHistory] = useState([]);
+  const [user, setUser]               = useState(null);
+  const [saving, setSaving]           = useState(false);
+  const [saveMsg, setSaveMsg]         = useState('');
 
   // Form state for profile edit
   const [name, setName]   = useState('');
@@ -18,7 +19,7 @@ const Popup = () => {
 
   useEffect(() => {
     (async () => {
-      console.log('[CoBook Popup] Loading...');
+      console.log('[SplitSync Popup] Loading...');
       const u = await ensureAuthenticated();
       if (!u) { setView('home'); return; }
       setUser(u);
@@ -42,20 +43,22 @@ const Popup = () => {
 
         if (memberRows?.length) {
           const ids = memberRows.map(r => r.session_id);
-          const { data: activeSession } = await supabase
+          const { data: allSessions } = await supabase
             .from('sessions')
-            .select('id, property_title, total_cost, status')
+            .select('id, property_title, total_cost, status, property_url, created_at')
             .in('id', ids)
-            .neq('status', 'completed')
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          if (activeSession) setSession(activeSession);
+            .order('created_at', { ascending: false });
+
+          if (allSessions) {
+            setHistory(allSessions);
+            const active = allSessions.find(s => s.status !== 'completed');
+            if (active) setSession(active);
+          }
         }
       }
 
       setView(p ? 'home' : 'editProfile');
-      console.log('[CoBook Popup] Ready. Profile:', p?.name ?? 'none');
+      console.log('[SplitSync Popup] Ready. Profile:', p?.name ?? 'none');
     })();
   }, []);
 
@@ -78,12 +81,12 @@ const Popup = () => {
   };
 
   const openAirbnb  = () => chrome.tabs.create({ url: 'https://www.airbnb.co.in' });
-  const openWebsite = () => chrome.tabs.create({ url: 'https://cobook.app' });
+  const openWebsite = () => chrome.tabs.create({ url: 'https://splitsync.app' });
 
   if (view === 'loading') {
     return (
       <div className="w-72 bg-neutral-900 flex items-center justify-center py-10">
-        <span className="text-neutral-500 text-sm animate-pulse">Loading CoBook...</span>
+        <span className="text-neutral-500 text-sm animate-pulse">Loading SplitSync...</span>
       </div>
     );
   }
@@ -144,15 +147,70 @@ const Popup = () => {
     );
   }
 
+  if (view === 'myTrips') {
+    return (
+      <div className="w-72 bg-neutral-900 text-white font-sans flex flex-col h-[400px]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <span className="text-lg">✈️</span>
+            <span className="font-bold text-sm">SplitSync</span>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => setView('home')} className="text-xs text-neutral-500 hover:text-white transition-colors">Home</button>
+            <button className="text-xs text-emerald-400 font-bold">My Trips</button>
+          </div>
+        </div>
+
+        <div className="p-4 flex-1 overflow-y-auto flex flex-col gap-3 custom-scrollbar">
+          <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-1">Your Sessions</h3>
+          {sessionsHistory.length === 0 ? (
+            <p className="text-xs text-neutral-600 text-center mt-4">No trips found. Start a session on Airbnb to see it here!</p>
+          ) : (
+            sessionsHistory.map(s => (
+              <div 
+                key={s.id} 
+                onClick={() => chrome.tabs.create({ url: s.property_url })}
+                className="bg-neutral-800/50 hover:bg-neutral-800 border border-neutral-700/50 hover:border-emerald-500/50 rounded-xl p-3 cursor-pointer transition-all flex flex-col gap-1.5"
+              >
+                <div className="flex justify-between items-start gap-2">
+                  <p className="text-white text-xs font-semibold truncate leading-tight shadow-sm">{s.property_title || 'Airbnb Booking'}</p>
+                  <span className={`shrink-0 text-[9px] px-1.5 py-0.5 rounded uppercase tracking-wider font-bold ${
+                    s.status === 'completed' ? 'text-neutral-400 bg-neutral-700/50 border border-neutral-600/30' :
+                    s.status === 'locked_for_payment' ? 'text-amber-400 bg-amber-500/10 border border-amber-500/20' :
+                    'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20'
+                  }`}>
+                    {s.status === 'locked_for_payment' ? 'Paying' : s.status}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mt-0.5">
+                  <p className="text-neutral-400 text-[10px]">
+                    {new Date(s.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
+                  <p className="text-white text-[11px] font-bold">₹{Number(s.total_cost).toLocaleString()}</p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // Home view
   return (
-    <div className="w-72 bg-neutral-900 text-white font-sans">
+    <div className="w-72 bg-neutral-900 text-white font-sans h-[400px] flex flex-col">
       {/* Header */}
-      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-neutral-800">
-        <span className="text-lg">✈️</span>
-        <span className="font-bold text-sm">CoBook</span>
-        <span className="ml-auto text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">Active</span>
-      </div>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-800 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <span className="text-lg">✈️</span>
+            <span className="font-bold text-sm">SplitSync</span>
+          </div>
+          <div className="flex gap-3">
+            <button className="text-xs text-emerald-400 font-bold">Home</button>
+            <button onClick={() => setView('myTrips')} className="text-xs text-neutral-500 hover:text-white transition-colors">My Trips</button>
+          </div>
+        </div>
 
       <div className="p-4 flex flex-col gap-3">
         {/* Profile Card */}
@@ -199,7 +257,7 @@ const Popup = () => {
           Open Airbnb
         </button>
         <button onClick={openWebsite} className="w-full bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-white font-semibold py-2 rounded-xl text-sm transition-colors">
-          Visit CoBook Website
+          Visit SplitSync Website
         </button>
         <p className="text-center text-[10px] text-neutral-600">Navigate to Airbnb to start a group session.</p>
       </div>

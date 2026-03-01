@@ -6,7 +6,8 @@ export default function LoadingScreen() {
       <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
         <span className="text-xl">✈️</span>
       </div>
-      <p className="text-neutral-400 text-sm">Loading CoBook...</p>
+      <p className="text-neutral-400 text-sm">Loading SplitSync...</p>
     </div>
   );
 }
+

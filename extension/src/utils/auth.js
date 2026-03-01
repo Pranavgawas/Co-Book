@@ -2,7 +2,7 @@ import { supabase } from '../supabaseClient';
 
 // The key used to share the Supabase session between popup and content script.
 // Both run in different localStorage contexts, so we bridge via chrome.storage.local.
-const SESSION_STORAGE_KEY = 'cobook_supabase_session';
+const SESSION_STORAGE_KEY = 'SplitSync_supabase_session';
 
 /**
  * Saves the current Supabase session tokens to chrome.storage.local
@@ -18,10 +18,10 @@ export async function persistSessionToStorage() {
           refresh_token: session.refresh_token,
         }
       });
-      console.log('[CoBook Auth] 💾 Session saved to chrome.storage for content script sharing.');
+      console.log('[SplitSync Auth] 💾 Session saved to chrome.storage for content script sharing.');
     }
   } catch (err) {
-    console.warn('[CoBook Auth] Could not persist session:', err.message);
+    console.warn('[SplitSync Auth] Could not persist session:', err.message);
   }
 }
 
@@ -33,7 +33,7 @@ export async function persistSessionToStorage() {
  *  3. Create a new anonymous session as last resort
  */
 export async function ensureAuthenticated() {
-  console.log('[CoBook Auth] Checking for session...');
+  console.log('[SplitSync Auth] Checking for session...');
 
   // ── PRIORITY 1: Session saved from popup via chrome.storage ──────────────
   // The popup and content script have different localStorage contexts.
@@ -43,47 +43,47 @@ export async function ensureAuthenticated() {
     const stored = await chrome.storage.local.get(SESSION_STORAGE_KEY);
     const saved = stored[SESSION_STORAGE_KEY];
     if (saved?.access_token && saved?.refresh_token) {
-      console.log('[CoBook Auth] 🔄 Restoring session from chrome.storage (popup session)...');
+      console.log('[SplitSync Auth] 🔄 Restoring session from chrome.storage (popup session)...');
       const { data, error } = await supabase.auth.setSession({
         access_token: saved.access_token,
         refresh_token: saved.refresh_token,
       });
       if (!error && data?.user) {
-        console.log('[CoBook Auth] ✅ Session restored. User ID:', data.user.id);
+        console.log('[SplitSync Auth] ✅ Session restored. User ID:', data.user.id);
         return data.user;
       }
       // Stored tokens expired — clear them and fall through
-      console.warn('[CoBook Auth] Stored session expired, clearing...');
+      console.warn('[SplitSync Auth] Stored session expired, clearing...');
       await chrome.storage.local.remove(SESSION_STORAGE_KEY);
     }
   } catch (storageErr) {
-    console.warn('[CoBook Auth] chrome.storage unavailable:', storageErr.message);
+    console.warn('[SplitSync Auth] chrome.storage unavailable:', storageErr.message);
   }
 
   // ── PRIORITY 2: Already signed in locally (same context) ─────────────────
   const { data: { session: existing } } = await supabase.auth.getSession();
   if (existing?.user) {
-    console.log('[CoBook Auth] ✅ Local session found. User ID:', existing.user.id);
+    console.log('[SplitSync Auth] ✅ Local session found. User ID:', existing.user.id);
     return existing.user;
   }
 
   // ── PRIORITY 3: Create a fresh anonymous session ──────────────────────────
-  console.log('[CoBook Auth] No session found — creating anonymous sign-in...');
+  console.log('[SplitSync Auth] No session found — creating anonymous sign-in...');
   const { data, error } = await supabase.auth.signInAnonymously();
   if (error) {
-    console.error('[CoBook Auth] ❌ Anonymous sign-in FAILED:', error.message);
+    console.error('[SplitSync Auth] ❌ Anonymous sign-in FAILED:', error.message);
     if (error.message?.toLowerCase().includes('captcha')) {
-      console.error('[CoBook Auth] → Disable CAPTCHA: Supabase Dashboard → Auth → Settings → CAPTCHA → Off');
+      console.error('[SplitSync Auth] → Disable CAPTCHA: Supabase Dashboard → Auth → Settings → CAPTCHA → Off');
     }
     return null;
   }
-  console.log('[CoBook Auth] ✅ New anonymous session. User ID:', data.user.id);
+  console.log('[SplitSync Auth] ✅ New anonymous session. User ID:', data.user.id);
   await persistSessionToStorage();
   return data.user;
 }
 
 export async function saveProfile(userId, { name, upiId }) {
-  console.log('[CoBook Auth] Saving profile...', { name, upiId });
+  console.log('[SplitSync Auth] Saving profile...', { name, upiId });
   const { data, error } = await supabase
     .from('profiles')
     .upsert({ id: userId, name, upi_id: upiId }, { onConflict: 'id' })
@@ -91,16 +91,16 @@ export async function saveProfile(userId, { name, upiId }) {
     .single();
 
   if (error) {
-    console.error('[CoBook Auth] ❌ saveProfile FAILED:', error.message, error);
-    console.error('[CoBook Auth] → Check: "profiles" table exists and RLS allows upsert. Run supabase_schema.sql!');
+    console.error('[SplitSync Auth] ❌ saveProfile FAILED:', error.message, error);
+    console.error('[SplitSync Auth] → Check: "profiles" table exists and RLS allows upsert. Run supabase_schema.sql!');
   } else {
-    console.log('[CoBook Auth] ✅ Profile saved:', data);
+    console.log('[SplitSync Auth] ✅ Profile saved:', data);
   }
   return { data, error };
 }
 
 export async function getProfile(userId) {
-  console.log('[CoBook Auth] Fetching profile for user:', userId);
+  console.log('[SplitSync Auth] Fetching profile for user:', userId);
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
@@ -108,16 +108,17 @@ export async function getProfile(userId) {
     .maybeSingle();
 
   if (error) {
-    console.error('[CoBook Auth] ❌ getProfile FAILED:', error.message);
-    console.error('[CoBook Auth] → "profiles" table likely missing. Run supabase_schema.sql in Supabase SQL Editor.');
+    console.error('[SplitSync Auth] ❌ getProfile FAILED:', error.message);
+    console.error('[SplitSync Auth] → "profiles" table likely missing. Run supabase_schema.sql in Supabase SQL Editor.');
     return null;
   }
 
   if (!data) {
-    console.log('[CoBook Auth] ℹ️ No profile row found — first run.');
+    console.log('[SplitSync Auth] ℹ️ No profile row found — first run.');
     return null;
   }
 
-  console.log('[CoBook Auth] ✅ Profile loaded:', data.name, '| UPI:', data.upi_id);
+  console.log('[SplitSync Auth] ✅ Profile loaded:', data.name, '| UPI:', data.upi_id);
   return data;
 }
+

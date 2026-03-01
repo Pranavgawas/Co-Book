@@ -7,7 +7,7 @@ export default function LobbyScreen({ session, members, profile, myUserId, onLoc
 
   const copyInviteLink = () => {
     // Full shareable link — friends open this, see session ID, paste into extension
-    const link = `Join my CoBook session to split the cost!\n\nSession ID: ${session.id}\n\nInstall CoBook extension, click "Join a Session" and paste this ID:\nhttps://chromewebstore.google.com/cobook`;
+    const link = `Join my SplitSync session to split the cost!\n\nSession ID: ${session.id}\n\nInstall SplitSync extension, click "Join a Session" and paste this ID:\nhttps://chromewebstore.google.com/splitsync`;
     navigator.clipboard.writeText(link).catch(() => {
       const el = document.createElement('textarea');
       el.value = link;
@@ -87,7 +87,7 @@ export default function LobbyScreen({ session, members, profile, myUserId, onLoc
             {copiedId ? '✓' : 'Copy'}
           </button>
         </div>
-        <p className="text-[10px] text-neutral-600 mt-1.5">Friends: install CoBook → click "Join a Session" → paste this ID</p>
+        <p className="text-[10px] text-neutral-600 mt-1.5">Friends: install SplitSync → click "Join a Session" → paste this ID</p>
       </div>
 
       <button

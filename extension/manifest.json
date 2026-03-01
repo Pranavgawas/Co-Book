@@ -1,6 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "CoBook - Multiplayer Travel",
+  "name": "SplitSync - Multiplayer Travel",
+  "short_name": "SplitSync",
   "version": "1.0.0",
   "description": "Multiplayer travel booking and expense splitting.",
   "permissions": [
@@ -9,18 +10,20 @@
   ],
   "host_permissions": [
     "*://*.airbnb.com/*",
-    "*://*.airbnb.co.in/*"
+    "*://*.airbnb.co.in/*",
+    "*://*.makemytrip.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Open CoBook"
+    "default_title": "Open SplitSync"
   },
   "content_scripts": [
     {
       "js": ["src/content.jsx"],
       "matches": [
         "*://*.airbnb.com/*",
-        "*://*.airbnb.co.in/*"
+        "*://*.airbnb.co.in/*",
+        "*://*.makemytrip.com/*"
       ],
       "run_at": "document_idle"
     }
@@ -30,3 +33,4 @@
     "type": "module"
   }
 }
+

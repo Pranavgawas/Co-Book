@@ -1,59 +1,62 @@
 // Remote Adapter Pattern - DOM Scraper Utility
+// NO HARDCODED RULES - ALL SELECTORS FETCHED FROM SUPABASE
 
-export async function extractPropertyData(adapterRules) {
+export async function extractPropertyData(selectors) {
   const extractedData = {};
+  if (!selectors) return extractedData;
 
-  for (const [key, rule] of Object.entries(adapterRules.selectors)) {
-    let rawValue = null;
-
+  for (const [key, rule] of Object.entries(selectors)) {
     if (rule.strategy === 'meta') {
       const el = document.querySelector(rule.path);
-      if (el) rawValue = el.getAttribute(rule.attribute);
-    } 
-    else if (rule.strategy === 'dom') {
-      let el = document.querySelector(rule.path);
-      if (!el && rule.fallback) {
-        el = document.querySelector(rule.fallback);
-      }
-      if (el) rawValue = el.innerText || el.textContent;
+      if (el) extractedData[key] = el.getAttribute(rule.attribute);
     }
+    else if (rule.strategy === 'dom') {
+      const paths = [rule.path];
+      if (rule.fallback) {
+        paths.push(...rule.fallback.split(',').map(s => s.trim()));
+      }
 
-    if (rawValue && rule.regexMatch) {
-      let cleanedValue = rawValue;
-      if (rule.removeChars) {
-        rule.removeChars.forEach(char => {
-          cleanedValue = cleanedValue.split(char).join('');
-        });
+      let found = false;
+      for (const sel of paths) {
+        if (found || !sel) continue;
+
+        const elements = document.querySelectorAll(sel);
+        for (const el of elements) {
+          const text = el.innerText || el.textContent;
+          if (!text) continue;
+
+          if (rule.regexMatch) {
+            let cleanedValue = text;
+            if (rule.removeChars) {
+              rule.removeChars.forEach(char => {
+                cleanedValue = cleanedValue.split(char).join('');
+              });
+            }
+            const match = cleanedValue.match(new RegExp(rule.regexMatch));
+            if (match) {
+              const parsed = parseInt(match[0], 10);
+              if (!isNaN(parsed) && parsed > 0) {
+                extractedData[key] = parsed;
+                found = true;
+                break;
+              }
+            }
+          } else {
+            extractedData[key] = text;
+            found = true;
+            break;
+          }
+        }
       }
-      
-      const match = cleanedValue.match(new RegExp(rule.regexMatch));
-      if (match) {
-        extractedData[key] = parseInt(match[0], 10);
-      }
-    } else {
-      extractedData[key] = rawValue;
     }
   }
 
   return extractedData;
 }
 
-// Temporary hardcoded ruleset for dev without backend fetch
-export const airbnbRules = {
-  "domain": "airbnb",
-  "version": "1.0.0",
-  "selectors": {
-    "title": {
-      "strategy": "meta",
-      "path": "meta[property='og:title']",
-      "attribute": "content"
-    },
-    "total_price": {
-      "strategy": "dom",
-      "path": "div[data-section-id='BOOK_IT_SIDEBAR'] span[data-testid='price-and-discounted-price']",
-      "fallback": "span._1y74zjx", 
-      "regexMatch": "[0-9]+",
-      "removeChars": [",", "₹", "$"]
-    }
-  }
-};
+export function getDomainForCurrentPage() {
+  const url = window.location.href;
+  if (url.includes('airbnb.')) return 'airbnb';
+  if (url.includes('makemytrip.com')) return 'makemytrip';
+  return null;
+}

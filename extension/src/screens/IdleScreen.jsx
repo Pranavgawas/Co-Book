@@ -60,7 +60,7 @@ export default function IdleScreen({ profile, onCreateSession, onJoinSession }) 
       )}
 
       <p className="text-center text-[10px] text-neutral-600">
-        Navigate to an Airbnb listing then start a session.
+        Navigate to a travel listing then start a session.
       </p>
     </div>
   );

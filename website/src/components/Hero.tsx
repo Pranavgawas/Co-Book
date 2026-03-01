@@ -27,7 +27,7 @@ const Hero = () => {
           </h1>
           
           <p className="text-lg sm:text-xl text-neutral-400 leading-relaxed max-w-lg">
-            The first multiplayer browser extension for group travel. Browse Airbnbs together, auto-split the costs at checkout, and generate instant payment requests before you book.
+            The first multiplayer browser extension for group travel. Browse travel sites together, auto-split the costs at checkout, and generate instant payment requests before you book.
           </p>
           
           <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mt-4">
@@ -54,10 +54,10 @@ const Hero = () => {
             <div className="flex justify-between items-center border-b border-neutral-800 pb-4 mb-4">
               <div>
                 <h3 className="text-white font-bold text-lg">Goa Villa Split</h3>
-                <p className="text-neutral-400 text-sm">4 Nights • 4 Guests</p>
+                <p className="text-neutral-400 text-sm">4 Nights • 3 Guests</p>
               </div>
               <div className="text-right">
-                <p className="text-white font-bold text-xl">₹40,000</p>
+                <p className="text-white font-bold text-xl">₹30,000</p>
                 <p className="text-emerald-400 text-xs font-semibold uppercase tracking-wider">Ready to book</p>
               </div>
             </div>

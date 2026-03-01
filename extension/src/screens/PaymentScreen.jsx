@@ -31,7 +31,7 @@ export default function PaymentScreen({ session, members, myUserId, onMarkPaid, 
   const paidCount = members.filter(m => m.payment_status === 'paid').length;
 
   const generateUpiLink = (hostUpi, amount, hostName) => {
-    return `upi://pay?pa=${encodeURIComponent(hostUpi)}&pn=${encodeURIComponent(hostName)}&am=${amount}&cu=INR&tn=${encodeURIComponent('CoBook Split - ' + session.property_title)}`;
+    return `upi://pay?pa=${encodeURIComponent(hostUpi)}&pn=${encodeURIComponent(hostName)}&am=${amount}&cu=INR&tn=${encodeURIComponent('SplitSync Split - ' + session.property_title)}`;
   };
 
   const host = members.find(m => m.user_id === session.host_id);
@@ -136,3 +136,4 @@ export default function PaymentScreen({ session, members, myUserId, onMarkPaid, 
     </div>
   );
 }
+

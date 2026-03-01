@@ -4,11 +4,11 @@ import Hero from './Hero';
 import tailwindStyles from './index.css?inline';
 
 // 1. Initial Injection Check
-if (!document.getElementById('cobook-extension-root')) {
+if (!document.getElementById('splitsync-extension-root')) {
   
   // 2. Create Host and Shadow DOM
   const host = document.createElement('div');
-  host.id = 'cobook-extension-root';
+  host.id = 'splitsync-extension-root';
   document.body.appendChild(host);
 
   const shadow = host.attachShadow({ mode: 'open' });
@@ -20,13 +20,13 @@ if (!document.getElementById('cobook-extension-root')) {
 
   // 4. Create React Mount
   const renderRoot = document.createElement('div');
-  renderRoot.id = 'cobook-react-root';
+  renderRoot.id = 'splitsync-react-root';
   shadow.appendChild(renderRoot);
 
   const root = createRoot(renderRoot);
   root.render(<Hero />);
   
-  console.log('[CoBook] Multiplayer UI Locked & Loaded via Shadow DOM');
+  console.log('[SplitSync] Multiplayer UI Locked & Loaded via Shadow DOM');
 
   // 5. native Checkout Hijack
   // Intercepting clicks at the capture phase to block the host site's native checkout sequence
@@ -36,16 +36,16 @@ if (!document.getElementById('cobook-extension-root')) {
      
      if (checkoutBtn) {
         // Here we could check if a session is active and fully funded
-        // For MVP, if they click it, we warn them to use CoBook Split instead and stop the event
+        // For MVP, if they click it, we warn them to use SplitSync instead and stop the event
         e.preventDefault();
         e.stopPropagation();
         
         // Optional: Dispatch custom event to tell React to open/highlight the Hero component
-        const event = new CustomEvent('cobook-checkout-intercepted');
+        const event = new CustomEvent('splitsync-checkout-intercepted');
         window.dispatchEvent(event);
 
-        console.log('[CoBook] Intercepted native checkout. Group must be fully funded to proceed.');
-        // In a full build, we would disable the underlying button and change its text to "Locked by CoBook"
+        console.log('[SplitSync] Intercepted native checkout. Group must be fully funded to proceed.');
+        // In a full build, we would disable the underlying button and change its text to "Locked by SplitSync"
         checkoutBtn.style.opacity = '0.5';
         checkoutBtn.style.cursor = 'not-allowed';
      }

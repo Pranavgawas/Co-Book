@@ -15,14 +15,17 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Anyone (anon or permanent) can read profiles — needed to show names in sessions
+DROP POLICY IF EXISTS "profiles_select_all" ON public.profiles;
 CREATE POLICY "profiles_select_all" ON public.profiles
   FOR SELECT USING (true);
 
 -- Only the owner can insert their own profile
+DROP POLICY IF EXISTS "profiles_insert_own" ON public.profiles;
 CREATE POLICY "profiles_insert_own" ON public.profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- Only the owner can update their own profile
+DROP POLICY IF EXISTS "profiles_update_own" ON public.profiles;
 CREATE POLICY "profiles_update_own" ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
 
@@ -41,54 +44,62 @@ CREATE TABLE IF NOT EXISTS public.sessions (
 
 ALTER TABLE public.sessions ENABLE ROW LEVEL SECURITY;
 
--- Anyone in a session (anon or permanent) can read sessions
+-- Allow anyone to read sessions (needed for joining and sync)
+DROP POLICY IF EXISTS "sessions_select_all" ON public.sessions;
 CREATE POLICY "sessions_select_all" ON public.sessions
   FOR SELECT USING (true);
 
--- Any authenticated user (including anonymous) can create a session
-CREATE POLICY "sessions_insert_auth" ON public.sessions
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+-- Any authenticated or anonymous user can create a session
+DROP POLICY IF EXISTS "sessions_insert_all" ON public.sessions;
+CREATE POLICY "sessions_insert_all" ON public.sessions
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
--- RESTRICTIVE: Only the host can update a session
--- Using restrictive to ensure this check is ALWAYS enforced
-CREATE POLICY "sessions_update_host_only" ON public.sessions AS RESTRICTIVE
+-- Only host can update (standard policy)
+DROP POLICY IF EXISTS "sessions_update_host" ON public.sessions;
+CREATE POLICY "sessions_update_host" ON public.sessions
   FOR UPDATE USING (auth.uid() = host_id);
 
 
--- 3. SESSION MEMBERS (the payment ledger)
+-- 3. SESSION MEMBERS
 CREATE TABLE IF NOT EXISTS public.session_members (
   session_id      UUID REFERENCES public.sessions(id) ON DELETE CASCADE,
   user_id         UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   amount_owed     NUMERIC(12, 2) DEFAULT 0.00,
-  payment_status  TEXT DEFAULT 'pending',   -- pending | paid
+  payment_status  TEXT DEFAULT 'pending',
   joined_at       TIMESTAMPTZ DEFAULT NOW() NOT NULL,
   PRIMARY KEY (session_id, user_id)
 );
 
 ALTER TABLE public.session_members ENABLE ROW LEVEL SECURITY;
 
--- Anyone can read member rows (needed for real-time sync)
+DROP POLICY IF EXISTS "members_select_all" ON public.session_members;
 CREATE POLICY "members_select_all" ON public.session_members
   FOR SELECT USING (true);
 
--- Any authenticated user (including anonymous) can join a session
-CREATE POLICY "members_insert_auth" ON public.session_members
+-- Only user can insert themselves
+DROP POLICY IF EXISTS "members_insert_own" ON public.session_members;
+CREATE POLICY "members_insert_own" ON public.session_members
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- RESTRICTIVE: Users can only update their OWN payment status
-CREATE POLICY "members_update_own_only" ON public.session_members AS RESTRICTIVE
+-- User can update their own status (e.g. marking paid)
+DROP POLICY IF EXISTS "members_update_own" ON public.session_members;
+CREATE POLICY "members_update_own" ON public.session_members
   FOR UPDATE USING (auth.uid() = user_id);
 
--- Users can delete themselves from a session (leave)
-CREATE POLICY "members_delete_own" ON public.session_members
-  FOR DELETE USING (auth.uid() = user_id);
-
--- Extra: Host can also update any member's amount_owed (for recalculating splits)
--- This needs a non-restrictive companion so the restrictive policy above doesn't block the host
+-- Host can update member amount_owed
+DROP POLICY IF EXISTS "members_update_host" ON public.session_members;
 CREATE POLICY "members_update_host" ON public.session_members
   FOR UPDATE USING (
-    auth.uid() = (SELECT host_id FROM public.sessions WHERE id = session_id)
+    EXISTS (
+      SELECT 1 FROM public.sessions 
+      WHERE id = session_id AND host_id = auth.uid()
+    )
   );
+
+-- User can leave
+DROP POLICY IF EXISTS "members_delete_own" ON public.session_members;
+CREATE POLICY "members_delete_own" ON public.session_members
+  FOR DELETE USING (auth.uid() = user_id);
 
 
 -- ============================================================
@@ -130,3 +141,41 @@ END $$;
 --     (Prevents abuse / database bloat from bot sign-ins)
 -- [4] Load the extension from extension/dist/ in Chrome
 -- ============================================================
+
+-- 4. SHORTLISTED PROPERTIES (The Upvote/Downvote Board)
+CREATE TABLE IF NOT EXISTS public.shortlisted_properties (
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  session_id      UUID REFERENCES public.sessions(id) ON DELETE CASCADE NOT NULL,
+  added_by        UUID REFERENCES public.profiles(id) NOT NULL,
+  property_title  TEXT NOT NULL,
+  property_url    TEXT NOT NULL,
+  price           NUMERIC(12, 2) DEFAULT 0.00,
+  image_url       TEXT,
+  upvotes         UUID[] DEFAULT '{}', -- Array of user IDs who upvoted
+  downvotes       UUID[] DEFAULT '{}', -- Array of user IDs who downvoted
+  created_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+ALTER TABLE public.shortlisted_properties ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "shortlist_select_all" ON public.shortlisted_properties;
+CREATE POLICY "shortlist_select_all" ON public.shortlisted_properties
+  FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "shortlist_insert_all" ON public.shortlisted_properties;
+CREATE POLICY "shortlist_insert_all" ON public.shortlisted_properties
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+DROP POLICY IF EXISTS "shortlist_update_all" ON public.shortlisted_properties;
+CREATE POLICY "shortlist_update_all" ON public.shortlisted_properties
+  FOR UPDATE USING (auth.uid() IS NOT NULL);
+
+-- Enable Realtime for the board
+DO 
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.shortlisted_properties;
+  EXCEPTION WHEN duplicate_object THEN
+    RAISE NOTICE 'shortlisted_properties is already in supabase_realtime - skipping.';
+  END;
+END ;

@@ -12,12 +12,24 @@ export function useSessionSync(sessionId) {
       return;
     }
 
+    console.log('[useSessionSync] 🔄 Fetching session:', sessionId);
     supabase
       .from('sessions')
       .select('*')
       .eq('id', sessionId)
-      .single()
-      .then(({ data }) => { if (data) setSessionData(data); });
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('[useSessionSync] ❌ Error fetching session:', error.message);
+          return;
+        }
+        if (data) {
+          console.log('[useSessionSync] ✅ Session data received:', data.status);
+          setSessionData(data);
+        } else {
+          console.warn('[useSessionSync] ⚠️ No session found for ID:', sessionId);
+        }
+      });
 
     const channel = supabase
       .channel(`session_row_${sessionId}`)

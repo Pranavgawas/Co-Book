@@ -13,12 +13,18 @@ export function usePaymentSync(sessionId) {
     }
 
     const fetchInitialState = async () => {
+      console.log('[usePaymentSync] 🔄 Fetching members for:', sessionId);
       const { data, error } = await supabase
         .from('session_members')
         .select('user_id, amount_owed, payment_status, profiles(name, avatar_url, upi_id)')
         .eq('session_id', sessionId);
 
-      if (!error && data) setMembers(data);
+      if (error) {
+        console.error('[usePaymentSync] ❌ Error fetching members:', error.message);
+      } else if (data) {
+        console.log('[usePaymentSync] ✅ Members loaded:', data.length);
+        setMembers(data);
+      }
     };
 
     fetchInitialState();

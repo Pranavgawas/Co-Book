@@ -22,7 +22,7 @@ export default function OnboardingScreen({ onComplete }) {
         <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto mb-3">
           <span className="text-2xl">✈️</span>
         </div>
-        <h2 className="text-white font-bold text-base">Welcome to CoBook</h2>
+        <h2 className="text-white font-bold text-base">Welcome to SplitSync</h2>
         <p className="text-neutral-400 text-xs mt-1">Set up your profile to start splitting group travel costs.</p>
       </div>
 
