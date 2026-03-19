@@ -9,8 +9,16 @@ const scenarios = [
   { city: 'Paris Apartment',  total:  1200, people: 4, currency: '€' },
 ];
 
+interface MemberRowProps {
+  name: string;
+  amount: number;
+  status: string;
+  currency: string;
+  delay?: number;
+}
+
 // Animated payment status item
-function MemberRow({ name, amount, status, currency, delay = 0 }) {
+function MemberRow({ name, amount, status, currency, delay = 0 }: MemberRowProps) {
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setVisible(true), delay);
@@ -167,8 +175,15 @@ function ProductMockup() {
   );
 }
 
+interface StepProps {
+  number: string | number;
+  icon: string;
+  title: string;
+  desc: string;
+}
+
 // Step card
-function Step({ number, icon, title, desc }) {
+function Step({ number, icon, title, desc }: StepProps) {
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center gap-3">
@@ -182,8 +197,14 @@ function Step({ number, icon, title, desc }) {
   );
 }
 
+interface QuoteProps {
+  text: string;
+  author: string;
+  trip: string;
+}
+
 // Testimonial
-function Quote({ text, author, trip }) {
+function Quote({ text, author, trip }: QuoteProps) {
   return (
     <div className="bg-neutral-900/60 border border-neutral-800 rounded-xl p-4">
       <p className="text-neutral-300 text-sm leading-relaxed mb-3">"{text}"</p>
