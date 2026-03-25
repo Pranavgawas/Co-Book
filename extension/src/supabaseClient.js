@@ -1,3 +1,4 @@
+'use strict';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://hwxwtgtaistelezdzsko.supabase.co';

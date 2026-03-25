@@ -1,3 +1,4 @@
+'use strict';
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 
@@ -12,8 +13,7 @@ export function useSessionSync(sessionId) {
       return;
     }
 
-    console.log('[useSessionSync] 🔄 Fetching session:', sessionId);
-    supabase
+        supabase
       .from('sessions')
       .select('*')
       .eq('id', sessionId)
@@ -24,8 +24,7 @@ export function useSessionSync(sessionId) {
           return;
         }
         if (data) {
-          console.log('[useSessionSync] ✅ Session data received:', data.status);
-          setSessionData(data);
+                    setSessionData(data);
         } else {
           console.warn('[useSessionSync] ⚠️ No session found for ID:', sessionId);
         }

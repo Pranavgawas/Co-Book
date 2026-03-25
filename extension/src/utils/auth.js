@@ -1,3 +1,4 @@
+'use strict';
 import { supabase } from '../supabaseClient';
 
 const SESSION_STORAGE_KEY = 'SplitSync_supabase_session';
@@ -19,21 +20,18 @@ export async function persistSessionToStorage() {
 }
 
 export async function ensureAuthenticated() {
-  console.log('[SplitSync Auth] Checking for session...');
-
+  
   // PRIORITY 1: Restore session from popup (shared across contexts)
   try {
     const stored = await chrome.storage.local.get(SESSION_STORAGE_KEY);
     const saved = stored[SESSION_STORAGE_KEY];
     if (saved?.access_token && saved?.refresh_token) {
-      console.log('[SplitSync Auth] Restoring session from chrome.storage...');
-      const { data, error } = await supabase.auth.setSession({
+            const { data, error } = await supabase.auth.setSession({
         access_token: saved.access_token,
         refresh_token: saved.refresh_token,
       });
       if (!error && data?.user) {
-        console.log('[SplitSync Auth] ✅ Session restored. User:', data.user.id);
-        return data.user;
+                return data.user;
       }
       console.warn('[SplitSync Auth] Stored session expired, clearing...');
       await chrome.storage.local.remove(SESSION_STORAGE_KEY);
@@ -46,8 +44,7 @@ export async function ensureAuthenticated() {
   try {
     const { data: { session: existing } } = await supabase.auth.getSession();
     if (existing?.user) {
-      console.log('[SplitSync Auth] ✅ Local session found. User:', existing.user.id);
-      return existing.user;
+            return existing.user;
     }
   } catch (err) {
     console.warn('[SplitSync Auth] Could not check local session:', err.message);
@@ -57,8 +54,7 @@ export async function ensureAuthenticated() {
   // NOTE: Make sure CAPTCHA is DISABLED in Supabase Dashboard → Auth → Settings
   // for anonymous sign-ins. CAPTCHA requires a browser environment which
   // extensions don't provide reliably.
-  console.log('[SplitSync Auth] Creating anonymous session...');
-  try {
+    try {
     const { data, error } = await supabase.auth.signInAnonymously();
     if (error) {
       console.error('[SplitSync Auth] ❌ Anonymous sign-in FAILED:', error.message);
@@ -71,8 +67,7 @@ export async function ensureAuthenticated() {
       }
       return null;
     }
-    console.log('[SplitSync Auth] ✅ New anonymous session. User:', data.user.id);
-    await persistSessionToStorage();
+        await persistSessionToStorage();
     return data.user;
   } catch (networkErr) {
     console.error('[SplitSync Auth] Network error during sign-in:', networkErr.message);

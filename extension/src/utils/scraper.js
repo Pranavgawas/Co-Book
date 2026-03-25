@@ -1,3 +1,4 @@
+'use strict';
 // Remote Adapter Pattern - DOM Scraper Utility
 // NO HARDCODED RULES - ALL SELECTORS FETCHED FROM SUPABASE
 

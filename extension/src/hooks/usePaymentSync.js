@@ -1,3 +1,4 @@
+'use strict';
 import { useEffect, useState } from 'react';
 import { supabase } from '../supabaseClient';
 
@@ -13,8 +14,7 @@ export function usePaymentSync(sessionId) {
     }
 
     const fetchInitialState = async () => {
-      console.log('[usePaymentSync] 🔄 Fetching members for:', sessionId);
-      const { data, error } = await supabase
+            const { data, error } = await supabase
         .from('session_members')
         .select('user_id, amount_owed, payment_status, profiles(name, avatar_url, upi_id)')
         .eq('session_id', sessionId);
@@ -22,8 +22,7 @@ export function usePaymentSync(sessionId) {
       if (error) {
         console.error('[usePaymentSync] ❌ Error fetching members:', error.message);
       } else if (data) {
-        console.log('[usePaymentSync] ✅ Members loaded:', data.length);
-        setMembers(data);
+                setMembers(data);
       }
     };
 

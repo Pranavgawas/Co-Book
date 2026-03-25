@@ -1,10 +1,10 @@
+'use strict';
 // SplitSync background service worker (Manifest V3)
 // Handles extension lifecycle events and provides a persistent context
 // for chrome.storage access from content scripts.
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('[SplitSync] Extension installed.');
-});
+  });
 
 // Keep the service worker alive by responding to messages from content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
